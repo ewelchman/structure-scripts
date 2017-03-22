@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+
+"""
+Script to calculate the zero-point energy using the OUTCAR from a VASP
+calculation of vibrational modes.
+Also calculates the vibrational contribution to enthalpy and entropy
+using T = 300 Kelvin.
+"""
+
+
+import numpy as np
+
+hbar = float(1.05457e-34)
+kb = float(1.38065e-23)
+T = float(300)
+
+frequencies = []
+im_freqs = 0
+for line in open("OUTCAR"):
+	if "f/i=" in line:
+		im_freqs += 1
+	elif "f  =" in line:
+		omega = (float(line.split()[5])*float(1e12))
+		frequencies.append(omega)
+
+print "Found {0} imaginary modes".format(im_freqs)
+print "  and {0} real modes\n".format(len(frequencies))
+
+#### Calculate zero-point energy
+zpe = 0.0
+for omega in frequencies:
+	hw = hbar*omega
+	zpe += hw/2
+
+print 'Zero-point Energy = {0} Joules'.format(zpe)
+print '                  = {0} eV\n'.format(zpe*float(6.24151e18))
+
+#### Calculate vibrational contribution to 
+####   enthalpy and entropy using T=300
+Enthalpy = 0.0
+Entropy = 0.0
+for omega in frequencies:
+	hw = hbar*omega
+	Bhw = hw/(kb*T)
+	block1 = 1 / np.expm1(Bhw)
+	block2 = hw / (2*T) * np.cosh(Bhw/2)/np.sinh(Bhw/2)
+	block3 = -1*kb*np.log( 2*np.sinh(Bhw/2) )
+	Enthalpy += hw*( 1/2 + block1 )
+	Entropy += block2 + block3
+print 'Enthalpy = {0} Joules'.format(Enthalpy)
+print '         = {0} eV'.format(Enthalpy*float(6.24151e18))
+print 'Entropy = {0} Joules/K'.format(Entropy)
+print '        = {0} eV/K'.format(Entropy*float(6.24151e18))
+
